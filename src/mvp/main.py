@@ -24,7 +24,8 @@ def get_next_chat_id() -> int:
             try:
                 current_id = int(row["chat_id"])     # берем значение из столбца chat_id и превращаем в число
                 last_id = max(last_id, current_id)   # оставляем максимальный id
-            except (ValueError, KeyError):           # есил строка битая - пропускаем
+            except (ValueError, KeyError):           # если строка битая - пропускаем
+                print('Ошибка!')
                 continue
 
         return last_id + 1          # возвращаем следующий id
