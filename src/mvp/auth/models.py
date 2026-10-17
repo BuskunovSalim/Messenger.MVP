@@ -47,4 +47,3 @@ class IsLoggedInRequest:
 class IsLoggedInResponse:
     """Результат проверки статуса"""
     is_logged_in: bool
-    login: str | None = None
