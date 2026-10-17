@@ -106,7 +106,53 @@ class Authorization:
             7. Возвращаем корректный ответ success=True,
             message="Пользователь {его логин} успешно авторизован.", user_id=<его user_id>.
         """
-        ...
+        current_users = self._read_csv()
+
+        found_user = None
+        for user in current_users:
+            if user['login'] == request.login:
+                found_user = user
+                break
+
+        if found_user is None:
+            message = f'Такого пользователя нет: {request.login}.'
+            print(message)
+            return LoginResponse(
+                success=False,
+                message=message,
+                user_id=None,
+            )
+        user_id = int(found_user['identifier'])
+
+        check_request = IsLoggedInRequest(user_id=user_id)
+        if self.is_logged_in(check_request).is_logged_in:
+            message = f'Пользователь {found_user['login']} уже авторизован'
+            print(message)
+            return LoginResponse(
+                success=True,
+                message=message,
+                user_id=user_id
+            )
+
+        if found_user['password'] != request.password:
+            message = f'Неверный пароль для пользователя {found_user['login']}.'
+            print(message)
+            return LoginResponse(
+                success=False,
+                message=message,
+                user_id=None,
+            )
+
+        self.authorized_users.add(user_id)
+
+        message = f'Пользователь {found_user['login']} успешно авторизован.'
+        print(message)
+        return LoginResponse(
+            success=True,
+            message=message,
+            user_id=user_id,
+        )
+
 
     def log_out(self, request: LogoutRequest) -> LogoutResponse:
         """
@@ -122,7 +168,23 @@ class Authorization:
             4. Возвращаем ответ LogoutResponse(success=True, message=f"Пользователь {request.user_id}
             успешно разлогирован.")
         """
-        ...
+        if request.user_id  not in self.authorized_users:
+            message = 'Пользователь не был авторизован'
+            print(message)
+            return LogoutResponse(
+                success=True,
+                message=message,
+            )
+
+        self.authorized_users.remove(request.user_id)
+
+        message = f'Пользователь {request.user_id} успешно разлогирован'
+        print(message)
+        return LogoutResponse(
+            success=True,
+            message=message,
+        )
+
 
     def is_logged_in(self, request: IsLoggedInRequest) -> IsLoggedInResponse:
         """
@@ -132,4 +194,5 @@ class Authorization:
             1. Проверяем, есть ли user_id в множестве авторизованных.
             2. Возвращаем ответ.
         """
-        ...
+        logged_in = request.user_id in self.authorized_users
+        return IsLoggedInResponse(is_logged_in=logged_in)
