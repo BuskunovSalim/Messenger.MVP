@@ -1,59 +1,37 @@
-from auth.models import RegistrRequest, RegistrResponse, LoginRequest, LoginResponse, LogoutRequest, LogoutResponse, IsLoggedInRequest, IsLoggedInResponse
-import csv
-import os
-import hashlib
-from datetime import datetime
+from email import message
 
+from auth.models import RegistrRequest, RegistrResponse, LoginRequest, LoginResponse, LogoutRequest, LogoutResponse, IsLoggedInRequest, IsLoggedInResponse
+from pathlib import Path
+from csv import DictWriter, DictReader
+
+COLUMNS = ["login", "password", "identifier"]
+
+sample = {
+    "login": "Salim",
+    "password": "Secret",
+    "identifier": "1",
+}
 
 class Authorization:
     """Класс авторизации."""
-    FIELDS = ['user_id', 'username', 'password_hash', 'is_logged_in', 'created_at']
     def __init__(
         self,
-        csv_path: str
+        csv_path: Path
     ) -> None:
         """Проверка наличия файла."""
-        self.csv_path = csv_path
-        self._init_csv()
+        self._csv_path = csv_path
+        self._create_csv()
+        self.authorized_users = set()
 
-    def _init_csv(self) -> None:
-        """Создаём CSV с заголовком, если файла нет."""
-        if not os.path.exists(self.csv_path):
-            with open(self.csv_path, 'w', encoding='utf-8', newline='') as file:
-                writer = csv.writer(file)
-                writer.writerow(self.FIELDS)
-
-    def _read_all(self) -> list[dict]:
-        """Читаем всех пользователей как список словарей."""
-        with open(self.csv_path, 'r', encoding='utf-8') as file:
-            reader = csv.DictReader(file)
-            return list(reader)
-
-    def _write_all(self, users: list[dict]) -> None:
-        """Перезаписываем файл пользователей."""
-        with open(self.csv_path, 'w', encoding='utf-8', newline='') as file:
-            writer = csv.DictWriter(file, fieldnames=self.FIELDS)
-            writer.writeheader()
-            writer.writerows(users)
-
-    @staticmethod       # декоратор, который превращает метод класса в обычную функцию, не привязанную ни к объекту, ни к классу.
-    def _hash_password(password: str) -> str:
-        """Хешируем пароль."""
-        return hashlib.sha256(password.encode('utf-8')).hexdigest()
-
-    def _next_user_id(self, users: list[dict]) -> int:
-        """Возвращаем следующий свободный user_id."""
-        if not users:
-            return 1
-        return max(int(u['user_id']) for u in users) + 1
-
-    def _find_user(self, users: list[dict], username: str) -> dict | None:
-        """Ищем пользователя по имени."""
-        for user in users:
-            if user['username'] == username:
-                return user
-        return None
-
+    def _create_csv(self) -> None:
+        """Создание csv-файла, если его ещё нет."""
+        if not self._csv_path.exists():
+            print(f"Файл {self._csv_path} не создан, создаём.")
+            with self._csv_path.open(mode="w", encoding="utf-8", newline="") as file:
+                current_writer = DictWriter(file, fieldnames=COLUMNS)
+                current_writer.writeheader()
+                return
+        print(f"Файл {self._csv_path} уже существует.")
 
     def registration(
         self,
@@ -66,7 +44,44 @@ class Authorization:
             # Сохраняет данные по пользователю.
             # Выдаёт идентификатор пользователя.
         """
+        current_users = self._read_csv()
+        locked_logins = set()
+        for user in current_users:
+            locked_logins.add(user["login"])
+        if request.login in locked_logins:
+            message = f"Логин {request.login} уже занят."
+            print(message)
+            return RegistrResponse(
+                success=False,
+                message=message,
+                user_id=None,
+            )
+        identifier = len(locked_logins) + 1
+        with self._csv_path.open(mode="a", encoding="utf-8", newline="") as file:
+            writer = DictWriter(file, fieldnames=COLUMNS)
+            writer.writerow(
+                {
+                    "login": request.login,
+                    "password": request.password,
+                    "identifier": identifier
+                }
+            )
+        message = "Успешно авторизован."
+        print(message)
+        return RegistrResponse(
+            success=True,
+            message=message,
+            user_id=identifier,
+        )
 
+    def _read_csv(self) -> list[dict]:
+        users = []
+        with self._csv_path.open(mode="r", encoding="utf-8", newline="") as file:
+            reader = DictReader(file, fieldnames=COLUMNS)
+            next(reader)
+            for row in reader:
+                users.append(row)
+        return users
 
     def authentication(self, request: LoginRequest) -> LoginResponse:
         """Вход пользователя."""
