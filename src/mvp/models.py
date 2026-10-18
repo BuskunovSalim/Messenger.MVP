@@ -1,3 +1,5 @@
+from datetime import datetime
+from enum import StrEnum, auto
 from dataclasses import dataclass, asdict
 from typing import Self
 
@@ -18,3 +20,28 @@ class UserModel:
 
     def dict_fmt(self) -> dict:
         return asdict(self)
+
+@dataclass(slots=True)
+class MessageStatus(StrEnum):
+    """Статусы сообщений."""
+    ERROR = auto()
+    SENT = auto()
+    IN_TRANSIT = auto()
+    RECEIVED = auto()
+    VIEWED = auto()
+
+@dataclass(slots=True)
+class MessageModel:
+    """Модель сообщения."""
+    identifier: int
+    status: MessageStatus
+    text: str
+    time_sending: datetime
+    status: MessageStatus
+
+@dataclass(slots=True)
+class CorrespondenceModel:
+    """Модель переписки."""
+    identifier: int
+    messages: list[MessageModel]
+    users: list[UserModel]

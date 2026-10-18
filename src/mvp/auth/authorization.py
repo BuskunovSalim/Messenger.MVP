@@ -12,7 +12,7 @@ class Authorization:
         csv_path: Path
     ) -> None:
         """Проверка наличия файла."""
-        self._csv_path = csv_path # /home/salim/MyProjects/Messenger.MVP/src/mvp/users.csv
+        self._csv_path = csv_path
         self._create_csv()
         self.authorized_users = set()
 
